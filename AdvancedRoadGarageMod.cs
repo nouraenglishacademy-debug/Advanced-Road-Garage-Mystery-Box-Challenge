@@ -10,10 +10,14 @@ public class AdvancedRoadGarageMod : MonoBehaviour
     private float customSpeedMultiplier = 1.0f; 
     private int selectedCarIndex = 0; 
 
-    private readonly string[] goodFastCars = { "VwGolfPrefab", "LadaPrefab", "PlymouthFuryPrefab", "DaciaPrefab" };
-    private readonly string[] fluids = { "GasCanisterPrefab", "OilCanisterPrefab", "WaterCanisterPrefab" };
-    private readonly string[] carParts = { "V8EnginePrefab", "CarWheelPrefab", "RadiatorPrefab" };
-    private readonly string[] generalItems = { "FirstAidKitPrefab", "SpongePrefab", "LicensePlatePrefab" };
+    // تم تعديل أسماء السيارات إلى الأكواد البرمجية الرسمية للعبة (Car06 = Golf, Car02 = Lada, Car07 = Plymouth, Car04 = Dacia)
+    private readonly string goodFastCars = { "Car06", "Car02", "Car07", "Car04" };
+    // الأسماء الرسمية للأوعية والسوائل في اللعبة
+    private readonly string fluids = { "GasCan", "Oil", "Bucket" };
+    // الأسماء الرسمية لقطع الغيار المتاحة للرندرة
+    private readonly string carParts = { "Wheel", "Radiator" };
+    // الأدوات العامة بالأسماء الرسمية (Rendszám = لوحة الأرقام، Csoki = شوكولاتة الشفاء، Sponge = إسفنجة)
+    private readonly string generalItems = { "Sponge", "Rendszám", "Csoki" };
 
     private List<GameObject> spawnedObjectsList = new List<GameObject>();
 
@@ -25,7 +29,7 @@ public class AdvancedRoadGarageMod : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.Y) && Input.GetKeyDown(KeyCode.G))
         {
-            showMenu = !showMenu; 
+            showMenu =!showMenu; 
         }
 
         Time.timeScale = customSpeedMultiplier;
@@ -40,7 +44,8 @@ public class AdvancedRoadGarageMod : MonoBehaviour
             GUILayout.Label("🛠️ لوحة تحكم الـ Mod المطورة", GUILayout.Width(220));
             GUILayout.Space(5);
 
-            GUILayout.Label($"السيارة الحالية: {goodFastCars[selectedCarIndex]}");
+            string carFriendlyName = GetFriendlyCarName(goodFastCars[selectedCarIndex]);
+            GUILayout.Label($"السيارة الحالية: {carFriendlyName}");
             if (GUILayout.Button("🔄 تغيير السيارة التالية"))
             {
                 selectedCarIndex = (selectedCarIndex + 1) % goodFastCars.Length;
@@ -87,17 +92,30 @@ public class AdvancedRoadGarageMod : MonoBehaviour
         }
     }
 
+    string GetFriendlyCarName(string prefabId)
+    {
+        switch (prefabId)
+        {
+            case "Car06": return "VW Golf MK1";
+            case "Car02": return "VAZ-2101 (Lada)";
+            case "Car07": return "Plymouth Fury";
+            case "Car04": return "Dacia 1300";
+            default: return prefabId;
+        }
+    }
+
     void CheckPlayerBuildingStatus()
     {
         if (TransformManager.PlayerTransform == null) return;
 
-        Collider[] hitColliders = Physics.OverlapSphere(TransformManager.PlayerTransform.position, 6f);
+        Collider hitColliders = Physics.OverlapSphere(TransformManager.PlayerTransform.position, 6f);
         bool foundBuilding = false;
 
         foreach (var col in hitColliders)
         {
-            if (col != null && col.name != null && 
-               (col.name.Contains("Garage") || col.name.Contains("House") || col.name.Contains("Building")))
+            // تم إضافة "muhely" وهو الاسم البرمجي للجراج للتأكد من رصد اقتراب اللاعب منه
+            if (col!= null && col.name!= null && 
+               (col.name.Contains("muhely") || col.name.Contains("Garage") || col.name.Contains("House") || col.name.Contains("Building")))
             {
                 foundBuilding = true;
                 break;
@@ -106,7 +124,7 @@ public class AdvancedRoadGarageMod : MonoBehaviour
 
         if (foundBuilding)
         {
-            if (!challengeTriggeredForCurrentBuilding && !mysteryBoxActive)
+            if (!challengeTriggeredForCurrentBuilding &&!mysteryBoxActive)
             {
                 mysteryBoxActive = true;
                 mysteryBoxTimer = 5.0f;
@@ -119,26 +137,23 @@ public class AdvancedRoadGarageMod : MonoBehaviour
         }
     }
 
-    // دالة حماية مركزية لعمل الـ Spawn بدون أخطاء (Safe Spawn)
     private GameObject SafeSpawn(string prefabName, Vector3 position, Quaternion rotation)
     {
         try
         {
             if (string.IsNullOrEmpty(prefabName)) return null;
 
-            // استدعاء الرندرة من مكتبة اللعبة
             GameObject obj = AssetLoader.SpawnPrefab(prefabName, position, rotation);
             
             if (obj == null)
             {
-                Debug.LogWarning($"[AdvancedMod] التحذير: فشل رندرة المجسم {prefabName}. قد يكون الاسم غير صحيح في ملفات اللعبة.");
+                Debug.LogWarning($"[AdvancedMod] التحذير: فشل رندرة المجسم {prefabName}. تم حمايته من الانهيار.");
             }
             return obj;
         }
         catch (Exception ex)
         {
-            // كتم الخطأ وطباعته في الـ Console بدلاً من كراش اللعبة
-            Debug.LogError($"[AdvancedMod] خطأ غير متوقع أثناء رندرة {prefabName}: {ex.Message}");
+            Debug.LogError($"[AdvancedMod] خطأ أثناء رندرة {prefabName}: {ex.Message}");
             return null;
         }
     }
@@ -149,10 +164,10 @@ public class AdvancedRoadGarageMod : MonoBehaviour
         Vector3 spawnPos = GetGroundedPosition(TransformManager.PlayerTransform.position + TransformManager.PlayerTransform.forward * 5f);
         
         GameObject superCar = SafeSpawn(goodFastCars[selectedCarIndex], spawnPos, TransformManager.PlayerTransform.rotation);
-        GameObject v8Engine = SafeSpawn("V8EnginePrefab", spawnPos + Vector3.up * 0.5f, Quaternion.identity);
+        GameObject extraPart = SafeSpawn("Radiator", spawnPos + Vector3.up * 0.5f, Quaternion.identity);
         
-        if (superCar != null) { RegisterObjectForSave(superCar); spawnedObjectsList.Add(superCar); }
-        if (v8Engine != null) { RegisterObjectForSave(v8Engine); spawnedObjectsList.Add(v8Engine); }
+        if (superCar!= null) { RegisterObjectForSave(superCar); spawnedObjectsList.Add(superCar); }
+        if (extraPart!= null) { RegisterObjectForSave(extraPart); spawnedObjectsList.Add(extraPart); }
 
         RefreshGameSaveSystem();
     }
@@ -164,7 +179,7 @@ public class AdvancedRoadGarageMod : MonoBehaviour
 
         Vector3 playerPos = TransformManager.PlayerTransform.position;
         Rigidbody playerRb = TransformManager.PlayerTransform.GetComponent<Rigidbody>();
-        if (playerRb != null)
+        if (playerRb!= null)
         {
             playerRb.AddExplosionForce(500f, playerPos + Vector3.down, 5f);
         }
@@ -181,16 +196,14 @@ public class AdvancedRoadGarageMod : MonoBehaviour
         Vector3 garageSpawnPos = GetGroundedPosition(rawSpawnPos);
         Quaternion buildingRotation = Quaternion.LookRotation(-playerForward);
         
-        // 1. جراج آمن
-        GameObject roadGarage = SafeSpawn("Garage", garageSpawnPos, buildingRotation);
-        if (roadGarage != null) { RegisterObjectForSave(roadGarage); spawnedObjectsList.Add(roadGarage); }
+        // تعديل اسم جراج اللعبة لـ muhely لضمان رندرته بشكل صحيح وصحيح 100%
+        GameObject roadGarage = SafeSpawn("muhely", garageSpawnPos, buildingRotation);
+        if (roadGarage!= null) { RegisterObjectForSave(roadGarage); spawnedObjectsList.Add(roadGarage); }
 
-        // 2. سيارة آمنة
         Vector3 carSpawnPos = GetGroundedPosition(garageSpawnPos + playerForward * 8f);
         GameObject car = SafeSpawn(goodFastCars[selectedCarIndex], carSpawnPos, buildingRotation);
-        if (car != null) { RegisterObjectForSave(car); spawnedObjectsList.Add(car); }
+        if (car!= null) { RegisterObjectForSave(car); spawnedObjectsList.Add(car); }
 
-        // 3. موارد آمنة
         for (int i = 0; i < 6; i++) 
         {
             int chance = UnityEngine.Random.Range(0, 100);
@@ -200,13 +213,13 @@ public class AdvancedRoadGarageMod : MonoBehaviour
             GameObject spawnedItem = null;
 
             if (chance < 40)
-                spawnedItem = SafeSpawn(fluids[UnityEngine.Random.Range(0, fluids.Length)], itemPos, buildingRotation);
+                spawnedItem = SafeSpawn(fluids, itemPos, buildingRotation);
             else if (chance >= 40 && chance < 70)
-                spawnedItem = SafeSpawn(carParts[UnityEngine.Random.Range(0, carParts.Length)], itemPos, buildingRotation);
+                spawnedItem = SafeSpawn(carParts, itemPos, buildingRotation);
             else 
-                spawnedItem = SafeSpawn(generalItems[UnityEngine.Random.Range(0, generalItems.Length)], itemPos, buildingRotation);
+                spawnedItem = SafeSpawn(generalItems, itemPos, buildingRotation);
 
-            if (spawnedItem != null)
+            if (spawnedItem!= null)
             {
                 RegisterObjectForSave(spawnedItem);
                 spawnedObjectsList.Add(spawnedItem);
@@ -230,7 +243,7 @@ public class AdvancedRoadGarageMod : MonoBehaviour
     {
         for (int i = spawnedObjectsList.Count - 1; i >= 0; i--)
         {
-            if (spawnedObjectsList[i] != null)
+            if (spawnedObjectsList[i]!= null)
             {
                 Destroy(spawnedObjectsList[i]);
             }
@@ -246,7 +259,7 @@ public class AdvancedRoadGarageMod : MonoBehaviour
         {
             obj.SendMessage("OnSpawnedByMod", SendMessageOptions.DontRequireReceiver);
             
-            Component[] rigidbodies = obj.GetComponentsInChildren(typeof(Rigidbody), true);
+            Component rigidbodies = obj.GetComponentsInChildren(typeof(Rigidbody), true);
             foreach (Rigidbody rb in rigidbodies)
             {
                 if (rb == null) continue;
@@ -260,8 +273,8 @@ public class AdvancedRoadGarageMod : MonoBehaviour
 
     void RefreshGameSaveSystem()
     {
-        GameObject mainController = GameObject.Find("maininstance") ?? GameObject.FindGameObjectWithTag("GameController");
-        if (mainController != null)
+        GameObject mainController = GameObject.Find("maininstance")?? GameObject.FindGameObjectWithTag("GameController");
+        if (mainController!= null)
         {
             mainController.SendMessage("UpdateSaveables", SendMessageOptions.DontRequireReceiver);
             mainController.SendMessage("ForceSaveRefresh", SendMessageOptions.DontRequireReceiver);
